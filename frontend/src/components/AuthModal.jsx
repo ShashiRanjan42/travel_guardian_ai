@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, User, Lock, Mail, UserPlus, Headset, Sparkles, ArrowRight, X } from 'lucide-react';
+import { api } from '../api';
 
 export default function AuthModal({ onLoginSuccess, onCancel, canClose = false }) {
   const [isSignup, setIsSignup] = useState(false);
@@ -11,10 +12,8 @@ export default function AuthModal({ onLoginSuccess, onCancel, canClose = false }
   const [errorMsg, setErrorMsg] = useState('');
 
   const demoAccounts = [
-    { label: 'Customer: Aarav Singhania (Mumbai - Srinagar)', email: 'aarav.singhania@reliance.com', pass: 'pass', role: 'CUSTOMER' },
-    { label: 'Customer: Diya Sharma (Bengaluru - Goa)', email: 'diya.sharma@tata.com', pass: 'pass', role: 'CUSTOMER' },
-    { label: 'Customer: Kabir Mehta (Delhi - Udaipur)', email: 'kabir.mehta@infosys.com', pass: 'pass', role: 'CUSTOMER' },
-    { label: 'Ops Lead (Priya Nair)', email: 'ops@guardian.ai', pass: 'admin', role: 'OPS' }
+    { label: 'Traveller: Rohan Desai (Mumbai - Kasol)', email: 'rohan@example.com', pass: 'demo', role: 'CUSTOMER' },
+    { label: 'Ops Agent: Meera Iyer', email: 'meera@wayfare.in', pass: 'demo', role: 'OPS' }
   ];
 
   const handleSubmit = async (e) => {
@@ -22,25 +21,11 @@ export default function AuthModal({ onLoginSuccess, onCancel, canClose = false }
     setErrorMsg('');
     setLoading(true);
 
-    const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
-    const payload = isSignup
-      ? { name, email, password, role, tier: 'VIP' }
-      : { email, password };
-
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'SUCCESS') {
-        onLoginSuccess(data.user);
-      } else {
-        setErrorMsg(data.detail || data.message || 'Authentication failed.');
-      }
+      if (isSignup) throw new Error('Account creation is not available in this demo backend. Use a demo account below.');
+      onLoginSuccess(await api.login(email, password));
     } catch (e) {
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg(e.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -58,19 +43,9 @@ export default function AuthModal({ onLoginSuccess, onCancel, canClose = false }
   const submitQuickLogin = async (eMail, passWord, rOle) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: eMail, password: passWord })
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'SUCCESS') {
-        onLoginSuccess(data.user);
-      } else {
-        setErrorMsg(data.detail || 'Login failed');
-      }
+      onLoginSuccess(await api.login(eMail, passWord));
     } catch (e) {
-      setErrorMsg('Network error');
+      setErrorMsg(e.message || 'Network error');
     } finally {
       setLoading(false);
     }

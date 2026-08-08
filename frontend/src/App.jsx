@@ -9,6 +9,7 @@ import ProfileModal from './components/ProfileModal';
 import NotificationBell from './components/NotificationBell';
 import FloatingAgentWidget from './components/FloatingAgentWidget';
 import GlobalSearchModal from './components/GlobalSearchModal';
+import { api } from './api';
 
 export default function App() {
   // PERSISTENT SESSION MANAGEMENT
@@ -77,36 +78,14 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      const itRes = await fetch('/api/itineraries');
-      if (itRes.ok) {
-        const itData = await itRes.json();
-        setItineraries(itData);
-        if (itData.length > 0) {
-          const selectedId = activeItineraryId || currentUser?.active_itinerary_id || itData[0].id;
-          const detailRes = await fetch(`/api/itineraries/${selectedId}`);
-          if (detailRes.ok) {
-            const detailData = await detailRes.json();
-            setActiveItinerary(detailData);
-          }
-        }
-      }
-
-      const incRes = await fetch('/api/incidents');
-      if (incRes.ok) {
-        const incData = await incRes.json();
-        setIncidents(incData);
-      }
-
-      const anaRes = await fetch('/api/analytics');
-      if (anaRes.ok) {
-        const anaData = await anaRes.json();
-        setAnalytics(anaData);
-      }
-
-      const logsRes = await fetch('/api/agents/logs');
-      if (logsRes.ok) {
-        const logsData = await logsRes.json();
-        setAgentLogs(logsData);
+      const data = await api.loadDashboard();
+      setItineraries(data.itineraries);
+      setIncidents(data.incidents);
+      setAnalytics(data.analytics);
+      setAgentLogs(data.agentLogs);
+      if (data.itineraries.length) {
+        const selectedId = activeItineraryId || data.itineraries[0].id;
+        setActiveItinerary(data.itineraries.find((item) => item.id === selectedId) || data.itineraries[0]);
       }
     } catch (e) {
       console.error('Error fetching data:', e);
@@ -114,6 +93,7 @@ export default function App() {
   };
 
   const handleLoginSuccess = (user) => {
+    if (user.accessToken) localStorage.setItem('guardian_access_token', user.accessToken);
     setCurrentUser(user);
     setRole(user.role);
     setShowAuthModal(false);
@@ -128,6 +108,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('guardian_current_user');
+    localStorage.removeItem('guardian_access_token');
     setProfileDropdownOpen(false);
     showToast('Logged out successfully.', 'INFO');
   };
@@ -140,17 +121,11 @@ export default function App() {
     setLoading(true);
     showToast('⚙️ Rebooking ticket & chauffeur via Booking & Coordination Agent...', 'INFO');
     try {
-      const res = await fetch(`/api/incidents/${incidentId}/approve_plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan_id: planId })
-      });
-      if (res.ok) {
-        const data = await res.json();
+      await api.approvePlan(incidentId, planId, activeItinerary?.id, role);
+      const data = { message: 'Recovery option confirmed.' };
+      {
         showToast(`✅ ${data.message}`, 'SUCCESS');
         await fetchData();
-      } else {
-        showToast('Approval failed.', 'ERROR');
       }
     } catch (e) {
       showToast('Network error during plan approval.', 'ERROR');

@@ -43,7 +43,7 @@ export default function OpsView({
 
   const activeIncidents = incidents.filter(i => i.status !== 'RECOVERED');
 
-  const handleCopilotSend = (e) => {
+  const handleCopilotSend = async (e) => {
     e.preventDefault();
     if (!copilotInput.trim()) return;
 
@@ -51,18 +51,21 @@ export default function OpsView({
     setCopilotMessages(prev => [...prev, { sender: 'USER', text: userMsg }]);
     setCopilotInput('');
 
-    setTimeout(() => {
-      let reply = "Analyzing fleet telemetry with Recovery Planning Agent...";
-      const lower = userMsg.toLowerCase();
-      if (lower.includes("summarize") || lower.includes("disruption") || lower.includes("landslide")) {
-        reply = "Summary: Landslide blocks NH-3 near Bhuntar (T-14.2h). 1 direct, 3 cascade impact. Alternative Vande Bharat Express & Heli-Chauffeur plans ready with >95% confidence.";
-      } else if (lower.includes("approve") || lower.includes("plan")) {
-        reply = "AI Plans Auto-Approval is ACTIVE (>95% Conf). 8 pending plans queued for automatic execution.";
+    try {
+      const res = await fetch('/api/v1/agents/chat_ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCopilotMessages(prev => [...prev, { sender: 'AI', text: data.reply }]);
       } else {
-        reply = "Swarm Status: All 10 Agents active. Zero SLA breach detected across sub-continent fleet.";
+        setCopilotMessages(prev => [...prev, { sender: 'AI', text: "Error connecting to AI Copilot." }]);
       }
-      setCopilotMessages(prev => [...prev, { sender: 'AI', text: reply }]);
-    }, 600);
+    } catch (e) {
+      setCopilotMessages(prev => [...prev, { sender: 'AI', text: "Network Error: Unable to reach AI Copilot." }]);
+    }
   };
 
   return (

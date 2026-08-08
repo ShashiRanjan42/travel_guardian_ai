@@ -3,6 +3,7 @@ import {
   Plane, Train, Building, Bus, Calendar, MapPin, Users, Sparkles, ShieldCheck, 
   Clock, ArrowRight, CheckCircle2, AlertTriangle, ChevronRight, Plus, ArrowLeft, RefreshCw, Send, X, Search, Bot, CreditCard, Star, ShieldAlert, Image, Quote, Check, Zap, Lock, MessageSquare 
 } from 'lucide-react';
+import { api } from '../api';
 
 export default function CustomerMMTView({ 
   itinerary, 
@@ -115,25 +116,25 @@ export default function CustomerMMTView({
     setSearching(true);
     try {
       if (type === 'FLIGHT') {
-        const res = await fetch(`/api/inventory/flights?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
+        const res = await fetch(`/api/v1/inventory/flights?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
         if (res.ok) {
           const data = await res.json();
           setFlightResults(data);
         }
       } else if (type === 'HOTEL') {
-        const res = await fetch(`/api/inventory/hotels?city=${encodeURIComponent(origin)}`);
+        const res = await fetch(`/api/v1/inventory/hotels?city=${encodeURIComponent(origin)}`);
         if (res.ok) {
           const data = await res.json();
           setHotelResults(data);
         }
       } else if (type === 'TRAIN') {
-        const res = await fetch(`/api/inventory/trains?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
+        const res = await fetch(`/api/v1/inventory/trains?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
         if (res.ok) {
           const data = await res.json();
           setTrainResults(data);
         }
       } else if (type === 'BUS') {
-        const res = await fetch(`/api/inventory/buses?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
+        const res = await fetch(`/api/v1/inventory/buses?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`);
         if (res.ok) {
           const data = await res.json();
           setBusResults(data);
@@ -184,21 +185,15 @@ export default function CustomerMMTView({
     setLocalBookings(prev => [newBookingObj, ...prev]);
 
     try {
-      const res = await fetch('/api/itineraries/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          booking_type: bookingType,
-          customer_id: currentUser?.id || 'cust-1',
-          origin: origin,
-          destination: destination,
-          operator: operator,
-          travel_date: travelDate
-        })
+      const data = await api.createBooking({
+        origin,
+        destination,
+        dates: [travelDate],
+        booking_type: bookingType,
+        operator
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'SUCCESS') {
-        setBookingNotice(`✅ Protected ${bookingType} Confirmed & Saved to Profile! (${origin} → ${destination})`);
+      if (data) {
+        setBookingNotice(`✅ Protected  Confirmed & Saved to Profile! ( → )`);
         setTimeout(() => setBookingNotice(null), 5000);
         if (onSelectItinerary && data.itinerary_id) {
           onSelectItinerary(data.itinerary_id);
@@ -206,7 +201,7 @@ export default function CustomerMMTView({
         setActiveTab('MY_BOOKINGS');
       }
     } catch (e) {
-      setBookingNotice(`✅ Protected ${bookingType} Confirmed & Saved to Profile!`);
+      setBookingNotice(`✅ Protected  Confirmed & Saved to Profile!`);
       setTimeout(() => setBookingNotice(null), 4000);
       setActiveTab('MY_BOOKINGS');
     }
@@ -228,7 +223,7 @@ export default function CustomerMMTView({
     setInputMsg('');
 
     try {
-      const res = await fetch('/api/agents/chat_book', {
+      const res = await fetch('/api/v1/agents/chat_book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -249,10 +244,10 @@ export default function CustomerMMTView({
           const pkg = data.package_plan;
           replyObj.packagePlan = pkg;
           replyObj.actionButton = {
-            label: `⚡ Confirm & Book ${pkg.destination} Trip Now`,
+            label: `⚡ Confirm & Book Trip Now`,
             onClick: () => {
               handleBookingSubmit('FLIGHT & HOTEL PACKAGE', 'Delhi (DEL)', `${pkg.destination} Resort`, 'Air India & Taj Hotels', pkg.start_date);
-              setChatMessages(prev => [...prev, { sender: 'AI', text: `🎉 Outstanding! Your ${pkg.destination} ${pkg.duration} package has been booked and activated with 7-Agent AI Guardian Protection!` }]);
+              setChatMessages(prev => [...prev, { sender: 'AI', text: `🎉 Outstanding! Your package has been booked and activated with 7-Agent AI Guardian Protection!` }]);
             }
           };
         }
@@ -1100,8 +1095,8 @@ export default function CustomerMMTView({
                           <span>{msg.packagePlan.destination} Package</span>
                           <span>{msg.packagePlan.duration}</span>
                         </div>
-                        <div>✈️ {msg.packagePlan.flight}</div>
-                        <div>🏨 {msg.packagePlan.hotel}</div>
+                        <div>✈ {msg.packagePlan.flight}</div>
+                        <div> {msg.packagePlan.hotel}</div>
                         <div>🚗 {msg.packagePlan.chauffeur}</div>
                         <div>🛡 {msg.packagePlan.buffer}</div>
                         <div className="text-emerald-400 font-bold border-t border-slate-800 pt-1 flex justify-between">
